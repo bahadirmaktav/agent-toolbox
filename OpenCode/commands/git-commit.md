@@ -1,0 +1,109 @@
+---
+description: Stage all changes, generate a conventional commit message, commit, and optionally push
+---
+
+# git-commit
+
+You MUST follow these steps in order. Do not skip any step.
+
+## Step 1 — Check Current State
+
+Run the following and analyze the output:
+
+```bash
+git status
+git diff
+```
+
+If there are no changes to commit, inform the user and stop.
+
+## Step 2 — Detect Jira Ticket ID
+
+Extract the Jira ticket ID from the current branch name:
+
+```bash
+git branch --show-current
+```
+
+Parse the branch name to find the ticket ID. The branch format is:
+`<prefix>/<TICKET-ID>-short-description`
+
+Example: `feature/PROJ-123-add-login` → ticket ID is `PROJ-123`
+
+If no ticket ID can be detected from the branch name, continue without it.
+
+## Step 3 — Analyze Changes and Propose Commit Message
+
+Analyze the diff carefully and determine:
+
+**Prefix selection guide:**
+| Prefix | When to use |
+|---|---|
+| `feat` | New feature or functionality added |
+| `fix` | Bug fix |
+| `ci` | CI/CD pipeline or configuration changes |
+| `docs` | Documentation only changes |
+| `style` | Formatting, whitespace, no logic change |
+| `build` | Build system or dependency changes |
+| `test` | Adding or updating tests |
+| `ref` | Refactoring, no functional change |
+| `perf` | Performance improvement |
+
+**Commit message format:**
+```
+<prefix>: <short description in English>
+
+<TICKET-ID>
+```
+
+Rules:
+- First line: `<prefix>: <description>` — imperative mood, lowercase, no period, max 72 chars
+- Blank line
+- Last line: Jira ticket ID (e.g. `PROJ-123`)
+- If no ticket ID was detected, omit the last line
+
+**Present the proposed commit message to the user and wait for confirmation before proceeding.**
+
+Example output:
+```
+Proposed commit message:
+
+feat: add user authentication endpoint
+
+PROJ-123
+
+Shall I proceed with staging all files and committing?
+```
+
+## Step 4 — Stage and Commit (only after user confirms)
+
+```bash
+git add -A
+git commit -m "<first line>" -m "<TICKET-ID>"
+```
+
+If no ticket ID, omit the second `-m` argument.
+
+Confirm to the user: commit was successful, show the commit hash.
+
+## Step 5 — Ask About Push
+
+Ask the user:
+
+```
+Do you want to push this commit to origin/<current-branch>?
+```
+
+If the user confirms, run:
+
+```bash
+git push origin <current-branch>
+```
+
+If the branch does not exist on remote yet, run:
+
+```bash
+git push --set-upstream origin <current-branch>
+```
+
+Confirm to the user: push was successful.
