@@ -1,14 +1,25 @@
 ---
-description: Create and switch to a conventional branch name from arguments or interactive prompts
+description: Create and switch to a conventional branch from command arguments without Jira
 ---
 
 # git-branch
 
-You MUST follow these steps in order. Do not skip any step.
+Create a branch directly from command arguments. Do not ask for Jira. Do not inspect conversation history.
 
-## Step 1 — Collect Inputs (Argument or Interactive)
+You MUST follow these steps in order.
 
-Supported branch types:
+## Step 1 — Read Arguments
+
+Use only `$ARGUMENTS` as the task summary.
+
+If `$ARGUMENTS` is empty or too vague to classify, ask one concise question:
+`What are you about to implement/fix in one sentence?`
+
+Do not use conversation history for branch generation.
+
+## Step 2 — Select Branch Type
+
+Use exactly one of these branch types:
 - `feature`
 - `hotfix`
 - `bugfix`
@@ -16,111 +27,74 @@ Supported branch types:
 - `refactor`
 - `release`
 
-If `$ARGUMENTS` is provided, parse it as:
-```
-<branch-type> <ticket-or-dash> <short-description>
-```
+Classification rules:
+- New capability, new endpoint, new UI flow, new module -> `feature`
+- Urgent production issue -> `hotfix`
+- Non-urgent bug fix -> `bugfix`
+- CI/CD, pipeline, docs-only, style-only, tests-only, build/dependency ops -> `infra`
+- Refactor, cleanup, architecture/code quality, optimization -> `refactor`
+- Release prep/version/changelog/release activities -> `release`
 
-Examples:
-- `feature JIRA-324 english explanation`
-- `bugfix CRM-91 fix login race`
-- `infra - update pipeline cache`
+Default fallback when ambiguous: `feature`.
 
-Rules:
-- `<branch-type>` must be one of the supported values
-- `<ticket-or-dash>` is required
-  - Jira ticket format example: `PROJ-123`
-  - If no Jira ticket, use `-`
-- `<short-description>` is required and must be in English (translate if needed)
+## Step 3 — Generate Slug
 
-If `$ARGUMENTS` is empty, switch to interactive mode:
-1. Ask user for a short work description (free text).
-2. Ask user for Jira ticket ID (optional, user may leave empty).
-3. Determine branch type from description with this mapping:
-   - new feature, endpoint, new page, new capability -> `feature`
-   - urgent production bug fix -> `hotfix`
-   - normal bug fix (non-urgent) -> `bugfix`
-   - CI/CD, pipeline, devops, docs, style-only, test infra, build config -> `infra`
-   - refactor, cleanup, code quality, optimization -> `refactor`
-   - release prep/version/release activities -> `release`
-4. If confidence is low between two types, ask one concise disambiguation question and proceed.
+Generate an English short description slug from `$ARGUMENTS` (or the single fallback answer).
 
-Jira is optional in both modes.
-
-## Step 2 — Build Branch Name
-
-Generate branch name in conventional format:
-
-- With Jira:
-```
-<branch-type>/<TICKET-ID>-<short-description>
-```
-
-- Without Jira:
-```
-<branch-type>/<short-description>
-```
-
-Rules for `<short-description>`:
-- lowercase only
+Slug rules:
+- lowercase
 - words separated with `-`
-- only `a-z`, `0-9`, and `-`
-- concise and meaningful
-- prefer 4-6 words where possible
+- allowed chars: `a-z`, `0-9`, `-`
+- target length: 3-6 words
+- concise and implementation-focused
 
-Examples:
-- `feature/JIRA-324-english-explanation`
-- `infra/update-pipeline-cache`
+Branch format:
+```
+<branch-type>/<slug>
+```
 
-Jira validation:
-- If Jira field is empty or `-`, treat as no Jira
-- If provided but not in `ABC-123` style, ask user to correct it or leave empty
+Example:
+`feature/add-bulk-user-import`
 
-## Step 3 — Prepare Base Branch
+## Step 4 — Prepare Base Branch
 
 Run and analyze:
 ```bash
-git branch --show-current
 git branch --list develop
 git branch --list main
 ```
 
 Base branch selection:
-- if `develop` exists, use `develop`
-- otherwise, use `main`
+- If `develop` exists, use `develop`
+- Else if `main` exists, use `main`
+- Else use current branch
 
-If neither `develop` nor `main` exists locally, explain the issue and ask user which base branch to use.
-
-Then update base branch:
+Then run:
 ```bash
 git checkout <base-branch>
 git pull origin <base-branch>
 ```
 
-## Step 4 — Present Plan and Ask Confirmation
+If pull fails because remote branch does not exist, continue with local base branch.
 
-Show this summary and wait for user confirmation:
-
----
-**Base branch:** `<base-branch>`  
-**New branch:** `<branch-name>`
-
-**Reasoning:** `<why this branch type was chosen>`
-
-Shall I proceed with creating and switching to this branch?
----
-
-## Step 5 — Create Branch (only after user confirms)
+## Step 5 — Create Branch Immediately
 
 Run:
 ```bash
 git checkout -b <branch-name>
 ```
 
-If branch already exists:
-- propose an alternative by appending a short numeric suffix (example: `-2`)
-- ask confirmation, then create the alternative branch
+If branch already exists, append a numeric suffix and retry:
+- `<branch-name>-2`
+- `<branch-name>-3`
 
-Then confirm:
-- current branch name
-- ready for commit using matching conventional prefix rules
+Stop at first successful creation.
+
+## Step 6 — Report Result
+
+Report only final result:
+- selected branch type and short reason
+- created branch name
+- base branch used
+
+Do not ask push-related questions.
