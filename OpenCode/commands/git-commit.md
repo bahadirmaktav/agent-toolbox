@@ -1,5 +1,5 @@
 ---
-description: Stage all changes, generate a conventional commit message, commit, and optionally push
+description: Stage all changes and create a conventional commit message aligned with branch type
 ---
 
 # git-commit
@@ -17,7 +17,7 @@ git diff
 
 If there are no changes to commit, inform the user and stop.
 
-## Step 2 — Detect Jira Ticket ID
+## Step 2 — Detect Branch Type and Jira Ticket ID
 
 Extract the Jira ticket ID from the current branch name:
 
@@ -25,16 +25,37 @@ Extract the Jira ticket ID from the current branch name:
 git branch --show-current
 ```
 
-Parse the branch name to find the ticket ID. The branch format is:
-`<prefix>/<TICKET-ID>-short-description`
+Parse the branch name. The supported branch prefixes are:
+- `feature`
+- `hotfix`
+- `bugfix`
+- `infra`
+- `refactor`
+- `release`
+
+Branch format:
+`<prefix>/<TICKET-ID>-short-description` or `<prefix>/short-description`
 
 Example: `feature/PROJ-123-add-login` → ticket ID is `PROJ-123`
 
 If no ticket ID can be detected from the branch name, continue without it.
 
+Map branch prefix to allowed commit prefixes:
+
+| Branch Prefix | Allowed Commit Prefixes |
+|---|---|
+| `feature` | `feat` |
+| `hotfix` | `fix` |
+| `bugfix` | `fix` |
+| `infra` | `ci`, `docs`, `style`, `build`, `test` |
+| `refactor` | `ref`, `perf` |
+| `release` | any conventional prefix |
+
 ## Step 3 — Analyze Changes and Propose Commit Message
 
-Analyze the diff carefully and determine:
+Analyze the diff carefully and determine the most suitable commit prefix.
+
+The selected prefix MUST be valid for the current branch type based on Step 2 mapping. If multiple prefixes are valid (for example `infra`, `refactor`, `release`), choose the most accurate one.
 
 **Prefix selection guide:**
 | Prefix | When to use |
@@ -85,25 +106,3 @@ git commit -m "<first line>" -m "<TICKET-ID>"
 If no ticket ID, omit the second `-m` argument.
 
 Confirm to the user: commit was successful, show the commit hash.
-
-## Step 5 — Ask About Push
-
-Ask the user:
-
-```
-Do you want to push this commit to origin/<current-branch>?
-```
-
-If the user confirms, run:
-
-```bash
-git push origin <current-branch>
-```
-
-If the branch does not exist on remote yet, run:
-
-```bash
-git push --set-upstream origin <current-branch>
-```
-
-Confirm to the user: push was successful.
